@@ -1,0 +1,6 @@
+{
+    "typescript.tsd.autoUpdate": true,
+    "vitetest.enable": true,
+    "vitest.commandLine": "npm run test",
+    "testing.automaticallyOpenPeekView": "never"
+}
