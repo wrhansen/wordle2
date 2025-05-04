@@ -2,18 +2,16 @@ import { useEffect, useState } from 'react'
 import { useKeyPress } from './hooks/useKeyPress'
 import './App.css'
 import Line from './Line'
-import { GetRandomWord, isWordInWordBank } from './utils/WordBank'
+import { GetRandomWord } from './utils/WordBank'
 import Message, { MessageType } from './Message'
 import refreshIcon from './assets/refresh.svg'
-
-type GuessArray = readonly [
-  string | null,
-  string | null,
-  string | null,
-  string | null,
-  string | null,
-  string | null,
-]
+import { GuessArray } from './types/GuessArray'
+import {
+  BackspaceKeyHandler,
+  LetterKeyHandler,
+  EnterKeyHandler,
+} from './Handlers'
+import { KeyCommand } from './types/KeyCommand'
 
 function App() {
   const [solution, setSolution] = useState<string | null>(null)
@@ -31,59 +29,37 @@ function App() {
   const [messageType, setMessageType] = useState(MessageType.ERROR)
 
   const handleKeyPress = (event: KeyboardEvent) => {
+    if (isGameOver) return
+
     const key = event.key.toLowerCase()
-    let currentGuess = guesses[currentGuessIndex]
-    if (isGameOver) {
-      return
+    const currentGuess = guesses[currentGuessIndex]
+
+    const handlers: { [key: string]: KeyCommand } = {
+      letter: new LetterKeyHandler(key, guesses, currentGuessIndex, setGuesses),
+      enter: new EnterKeyHandler(
+        solution,
+        currentGuessIndex,
+        setCurrentGuessIndex,
+        setMessage,
+        setMessageType,
+        setIsGameOver,
+      ),
+      backspace: new BackspaceKeyHandler(
+        guesses,
+        currentGuessIndex,
+        setGuesses,
+      ),
     }
-    if (key.length === 1 && /^[a-z]$/.test(key)) {
-      if (currentGuessIndex < 6) {
-        if (currentGuess === null) {
-          currentGuess = key
-        } else if (currentGuess.length < 5) {
-          currentGuess += key
-        } else {
-          console.log('Guess is full: ' + currentGuess)
-        }
-        // set guesses back to array
-        const newGuesses = [...guesses]
-        newGuesses[currentGuessIndex] = currentGuess
-        setGuesses(newGuesses as unknown as GuessArray)
-      } else {
-        console.log('Game over SHOULD NOT GET HERE')
-        setIsGameOver(true)
-      }
-    } else if (key === 'enter') {
-      if (currentGuess && currentGuess.length === 5) {
-        if (currentGuess === solution) {
-          console.log('You win!')
-          setMessage('You win!')
-          setMessageType(MessageType.SUCCESS)
-          setIsGameOver(true)
-        } else {
-          if (isWordInWordBank(currentGuess)) {
-            setCurrentGuessIndex(currentGuessIndex + 1)
-            console.log('Guess: ' + currentGuess)
-          } else {
-            setMessage('Not in word bank!')
-            setMessageType(MessageType.ERROR)
-            console.log('Guess is not in word bank: ' + currentGuess)
-          }
-        }
-      } else {
-        console.log('Guess is not full: ' + currentGuess)
-      }
-    } else if (key === 'backspace') {
-      if (currentGuess) {
-        currentGuess = currentGuess.slice(0, -1)
-        const newGuesses = [...guesses]
-        newGuesses[currentGuessIndex] = currentGuess
-        setGuesses(newGuesses as unknown as GuessArray)
-      } else {
-        console.log('No guess to delete')
-      }
-    } else {
-      console.log('No letter pressed: ' + key)
+
+    const handler =
+      key === 'enter'
+        ? handlers.enter
+        : key === 'backspace'
+          ? handlers.backspace
+          : handlers.letter
+
+    if (handler.canExecute(currentGuess)) {
+      handler.execute(currentGuess)
     }
   }
 
